@@ -45,6 +45,14 @@ interface Actor {
   accountId: string;
   userId: string | null;
   ip?: string | null;
+  // Developers manage test keys only; owners (and system callers) everything.
+  role?: "owner" | "developer";
+}
+
+function assertCanManage(actor: Actor, mode: KeyMode) {
+  if (actor.role === "developer" && mode === "live") {
+    throw Errors.forbidden("owner_only", "Only the account owner can manage live keys.");
+  }
 }
 
 function validateScopes(scopes: string[]): Scope[] {
@@ -65,6 +73,7 @@ export async function createKey(
 ): Promise<{ key: PublicKey; secret: string }> {
   const name = input.name.trim().slice(0, 100) || "Untitled key";
   const scopes = validateScopes(input.scopes);
+  assertCanManage(actor, input.mode);
 
   return db().transaction(async (tx) => {
     const [row] = await tx
@@ -128,6 +137,11 @@ export async function listKeys(accountId: string): Promise<(PublicKey & { status
 
 export async function revokeKey(actor: Actor, keyId: string): Promise<PublicKey> {
   return db().transaction(async (tx) => {
+    const [target] = await tx
+      .select({ mode: apiKeys.mode })
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, keyId), eq(apiKeys.accountId, actor.accountId)));
+    if (target) assertCanManage(actor, target.mode);
     const [key] = await tx
       .update(apiKeys)
       .set({ revokedAt: new Date() })
@@ -169,6 +183,7 @@ export async function rotateKey(
     if (!old || old.revokedAt || (old.expiresAt && old.expiresAt <= new Date())) {
       throw Errors.notFound("active API key");
     }
+    assertCanManage(actor, old.mode);
     // Rotating the same key twice would leave two "successors" alive.
     if (old.replacedByKeyId) {
       throw Errors.conflict("key_already_rotated", "This key was already rotated; rotate its replacement instead.");

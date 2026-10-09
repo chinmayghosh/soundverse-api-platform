@@ -1,13 +1,14 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { ensureAccountForUser } from "../accounts/service";
 import { db } from "../db/client";
 import { authAccounts, authSessions, authUsers, authVerifications } from "../db/schema";
 import { env } from "../env";
 
 // Better Auth handles dashboard login only. API keys, limits and metering are
-// our own code (src/server/keys, limits, billing).
+// our own code (src/server/keys, limits, billing). The tenant account is
+// created on first dashboard load (after verification), not in a sign-up
+// hook: that hook runs before the email is verified.
 function createAuth() {
   return betterAuth({
     baseURL: env().APP_URL,
@@ -33,15 +34,6 @@ function createAuth() {
       // No email provider: the brief allows printing the link to the server log.
       sendVerificationEmail: async ({ user, url }) => {
         console.log(`\n[email] verify ${user.email}: ${url}\n`);
-      },
-    },
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            await ensureAccountForUser(user);
-          },
-        },
       },
     },
     plugins: [nextCookies()],

@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureAccountForUser, getAccountWithPlan } from "../accounts/service";
+import { Errors } from "../errors";
 import { getAuth } from "./auth";
 
 export interface DashboardContext {
@@ -22,6 +23,13 @@ export async function requireDashboard(): Promise<DashboardContext> {
     role,
     ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
   };
+}
+
+// Owner-only dashboard actions.
+export async function requireOwner(): Promise<DashboardContext> {
+  const ctx = await requireDashboard();
+  if (ctx.role !== "owner") throw Errors.forbidden("owner_only", "Only the account owner can do this.");
+  return ctx;
 }
 
 export async function requireDashboardWithPlan() {

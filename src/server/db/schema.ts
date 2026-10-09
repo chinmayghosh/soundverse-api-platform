@@ -355,3 +355,24 @@ export const providerUsage = pgTable("provider_usage", {
   provider: text("provider").primaryKey(),
   calls: integer("calls").notNull().default(0),
 });
+
+/* ------------------------------------------------------------------ */
+/* Team invites: accepted when the invited email signs up.             */
+/* ------------------------------------------------------------------ */
+
+export const teamInvites = pgTable(
+  "team_invites",
+  {
+    id: text("id").primaryKey(), // inv_...
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: memberRoleEnum("role").notNull(),
+    invitedByUserId: text("invited_by_user_id").references(() => authUsers.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    acceptedAt: ts("accepted_at"),
+    revokedAt: ts("revoked_at"),
+  },
+  (t) => [index("team_invites_email_idx").on(t.email)],
+);

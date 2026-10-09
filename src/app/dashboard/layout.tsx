@@ -10,6 +10,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     ["/dashboard/generations", "Generations"],
     ["/dashboard/usage", "Usage"],
     ["/dashboard/webhooks", "Webhooks"],
+    ["/dashboard/team", "Team"],
     ["/dashboard/audit", "Audit log"],
   ] as const;
   return (

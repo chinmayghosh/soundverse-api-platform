@@ -29,7 +29,7 @@ export async function createKeyAction(input: {
   const ctx = await requireDashboard();
   return run(async () => {
     const { key, secret } = await createKey(
-      { accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip },
+      { accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip, role: ctx.role },
       input,
     );
     return { ok: true, secret, prefix: key.prefix, message: "Key created." };
@@ -39,7 +39,7 @@ export async function createKeyAction(input: {
 export async function revokeKeyAction(keyId: string): Promise<KeyActionResult> {
   const ctx = await requireDashboard();
   return run(async () => {
-    await revokeKey({ accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip }, keyId);
+    await revokeKey({ accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip, role: ctx.role }, keyId);
     return { ok: true, message: "Key revoked. It stops working immediately." };
   });
 }
@@ -48,7 +48,7 @@ export async function rotateKeyAction(keyId: string, graceSec: number): Promise<
   const ctx = await requireDashboard();
   return run(async () => {
     const { key, secret } = await rotateKey(
-      { accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip },
+      { accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip, role: ctx.role },
       keyId,
       graceSec,
     );

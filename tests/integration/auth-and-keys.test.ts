@@ -6,6 +6,7 @@ import { getAuth } from "@/server/auth/auth";
 import { db } from "@/server/db/client";
 import { accounts, authUsers, memberships } from "@/server/db/schema";
 import { createKey } from "@/server/keys/service";
+import { ensureAccountForUser } from "@/server/accounts/service";
 import { call, createTestAccount, createTestKey } from "../helpers";
 
 const auth = () => toNextJsHandler(getAuth());
@@ -19,17 +20,11 @@ const post = (path: string, body: unknown) =>
   );
 
 describe("dashboard accounts (Better Auth)", () => {
-  it("sign-up creates a Sandbox tenant, blocks login until the logged link is used", async () => {
+  it("sign-up blocks login until the logged link is used; the first dashboard load creates a Sandbox tenant", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const email = `dev${Date.now()}@example.com`;
     const signUp = await post("/sign-up/email", { name: "Dev", email, password: "correct horse battery" });
     expect(signUp.status).toBe(200);
-
-    const [user] = await db().select().from(authUsers).where(eq(authUsers.email, email));
-    const [member] = await db().select().from(memberships).where(eq(memberships.userId, user.id));
-    const [acct] = await db().select().from(accounts).where(eq(accounts.id, member.accountId));
-    expect(member.role).toBe("owner");
-    expect(acct.planId).toBe("sandbox");
 
     const blocked = await post("/sign-in/email", { email, password: "correct horse battery" });
     expect(blocked.status).toBe(403);
@@ -42,6 +37,15 @@ describe("dashboard accounts (Better Auth)", () => {
 
     const ok = await post("/sign-in/email", { email, password: "correct horse battery" });
     expect(ok.status).toBe(200);
+
+    // What requireDashboard() does with the verified session user:
+    const [user] = await db().select().from(authUsers).where(eq(authUsers.email, email));
+    expect(user.emailVerified).toBe(true);
+    await ensureAccountForUser(user);
+    const [member] = await db().select().from(memberships).where(eq(memberships.userId, user.id));
+    const [acct] = await db().select().from(accounts).where(eq(accounts.id, member.accountId));
+    expect(member.role).toBe("owner");
+    expect(acct.planId).toBe("sandbox");
   });
 });
 

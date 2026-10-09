@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireDashboard } from "@/server/auth/session";
+import { requireOwner } from "@/server/auth/session";
 import { db } from "@/server/db/client";
 import { ApiError } from "@/server/errors";
 import { createEndpoint, deleteEndpoint, validateWebhookUrl } from "@/server/webhooks/endpoints";
@@ -8,8 +8,8 @@ import { createEndpoint, deleteEndpoint, validateWebhookUrl } from "@/server/web
 export type WebhookActionResult = { ok: true; secret?: string; message: string } | { ok: false; message: string };
 
 export async function createEndpointAction(url: string): Promise<WebhookActionResult> {
-  const ctx = await requireDashboard();
   try {
+    const ctx = await requireOwner();
     await validateWebhookUrl(url);
     const { secret } = await db().transaction((tx) =>
       createEndpoint(tx, { accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip }, { url }),
@@ -23,8 +23,8 @@ export async function createEndpointAction(url: string): Promise<WebhookActionRe
 }
 
 export async function deleteEndpointAction(id: string): Promise<WebhookActionResult> {
-  const ctx = await requireDashboard();
   try {
+    const ctx = await requireOwner();
     await deleteEndpoint({ accountId: ctx.accountId, userId: ctx.user.id, ip: ctx.ip }, id);
     revalidatePath("/dashboard/webhooks");
     return { ok: true, message: "Endpoint deleted." };

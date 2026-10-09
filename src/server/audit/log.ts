@@ -8,7 +8,10 @@ export type AuditAction =
   | "key.revoked"
   | "plan.changed"
   | "webhook.created"
-  | "webhook.deleted";
+  | "webhook.deleted"
+  | "member.invited"
+  | "member.removed"
+  | "invite.revoked";
 
 export interface AuditEntry {
   accountId: string;
