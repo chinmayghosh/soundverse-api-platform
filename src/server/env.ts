@@ -27,6 +27,12 @@ const EnvSchema = z.object({
   MOCK_LATENCY_MS: z.coerce.number().int().nonnegative().default(3000),
   MOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0),
 
+  // Worker tuning.
+  WORKER_CONCURRENCY: z.coerce.number().int().positive().default(10),
+  JOB_LEASE_SEC: z.coerce.number().int().positive().default(60),
+  PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
+  PROVIDER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(3),
+
   KEY_ROTATION_GRACE_SEC: z.coerce.number().int().nonnegative().default(86400),
   ALLOW_HTTP_WEBHOOKS: z.stringbool().default(false),
 });

@@ -143,3 +143,40 @@ export function countBy<T>(items: T[], f: (t: T) => string | number) {
   for (const i of items) out[f(i)] = (out[f(i)] ?? 0) + 1;
   return out;
 }
+
+/* ---------------- worker helpers ---------------- */
+
+type Step = "ok" | "error" | "timeout" | "reject";
+
+// A provider that follows a script, one step per call: lets tests put a
+// failure exactly where they want it ("halfway through" a job).
+export function scriptedProvider(steps: Step[], opts: { latencyMs?: number } = {}) {
+  const calls: { providerRequestId: string | null }[] = [];
+  const provider = {
+    name: "scripted",
+    async generate(req: import("@/server/providers/types").GenerateRequest) {
+      const { ProviderError } = await import("@/server/providers/types");
+      const { sleep } = await import("@/server/providers/mock");
+      const step = steps[Math.min(calls.length, steps.length - 1)];
+      calls.push({ providerRequestId: req.providerRequestId });
+      await req.onSubmitted(req.providerRequestId ?? `scripted_${calls.length}`);
+      await sleep(opts.latencyMs ?? 5, req.signal);
+      if (step === "timeout") await sleep(60_000, req.signal); // hang until our timeout aborts
+      if (step === "error") throw new ProviderError("provider_error", "upstream 500");
+      if (step === "reject") throw new ProviderError("provider_rejected", "content policy", false);
+      return { audio: new Uint8Array([82, 73, 70, 70]), contentType: "audio/wav", format: "wav", durationSec: req.durationSec + 0.84 };
+    },
+  };
+  return { provider, calls };
+}
+
+export function testDeps(provider: import("@/server/providers/types").MusicProvider, over: Partial<import("@/server/jobs/worker").WorkerDeps> = {}) {
+  return { resolve: () => provider, leaseSec: 30, timeoutMs: 200, maxAttempts: 3, backoffMs: 5, ...over };
+}
+
+// Queue state is global; park jobs left by other test files so claimNext only
+// sees this test's jobs.
+export async function clearQueue() {
+  const { inArray } = await import("drizzle-orm");
+  await db().update(generations).set({ status: "canceled" }).where(inArray(generations.status, ["queued", "running"]));
+}

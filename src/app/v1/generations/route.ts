@@ -31,7 +31,7 @@ export const GET = apiRoute("generations:read", async (ctx) => {
     status: q.status,
     startingAfter: q.starting_after,
   });
-  const data = await Promise.all(rows.map(serializeGeneration));
+  const data = await Promise.all(rows.map((r) => serializeGeneration(r)));
   return {
     status: 200,
     body: {

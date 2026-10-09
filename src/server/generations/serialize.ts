@@ -5,13 +5,13 @@ type Row = typeof generations.$inferSelect;
 
 // Public representation. Signed audio URLs are minted fresh on every read so
 // they always carry a full TTL and expire on their own.
-export async function serializeGeneration(g: Row) {
+export async function serializeGeneration(g: Row, opts: { withAudioUrl?: boolean } = {}) {
   let output = null;
   if (g.status === "succeeded" && g.outputKey) {
-    const { url, expiresAt } = await presignGet(g.outputKey);
+    const signed = opts.withAudioUrl === false ? null : await presignGet(g.outputKey);
     output = {
-      audio_url: url,
-      audio_url_expires_at: expiresAt.toISOString(),
+      audio_url: signed?.url ?? null,
+      audio_url_expires_at: signed?.expiresAt.toISOString() ?? null,
       duration_sec: g.outputDurationSec === null ? null : Number(g.outputDurationSec),
       format: g.outputFormat,
     };
