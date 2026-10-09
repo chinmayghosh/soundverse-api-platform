@@ -15,7 +15,8 @@
     "demo": "docker compose up --build",
     "test:docker": "docker compose --profile test run --rm --build test",
     "plan:set": "tsx scripts/set-plan.ts",
-    "webhook:receiver": "tsx scripts/webhook-receiver.ts"
+    "webhook:receiver": "tsx scripts/webhook-receiver.ts",
+    "openapi": "tsx scripts/openapi.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",

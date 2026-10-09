@@ -1,0 +1,1549 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Soundverse Music Generation API",
+    "version": "1.0.0",
+    "description": "Generate music from a prompt. Asynchronous: create a job, then receive a webhook or poll. All errors share one shape: { error: { type, code, message, request_id } }."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Secret API key: sv_test_… (mock model, free) or sv_live_… (real model, billed)."
+      }
+    },
+    "schemas": {
+      "WebhookEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "evt_01J9ZK3XQ2V8M6N4P0R7T5W1Y3",
+            "description": "Stable across retries; use it to dedupe"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "event"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "generation.succeeded",
+              "generation.failed",
+              "generation.canceled"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Generation"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "type",
+          "created_at",
+          "data"
+        ]
+      },
+      "Generation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "gen_01J9ZK3XQ2V8M6N4P0R7T5W1Y3"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "generation"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "canceled"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "test",
+              "live"
+            ],
+            "description": "test keys use a mock model and are never charged"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "duration_sec": {
+            "type": "integer"
+          },
+          "license": {
+            "type": "string",
+            "enum": [
+              "royalty_free",
+              "sync",
+              "full_ownership"
+            ]
+          },
+          "instrumental": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "credits_charged": {
+            "type": "integer",
+            "description": "0 for test-mode jobs"
+          },
+          "model": {
+            "type": "string",
+            "example": "fal/minimax-music-v2.6",
+            "description": "Fixed at creation; never silently substituted"
+          },
+          "output": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "audio_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Signed URL; expires (see audio_url_expires_at). Re-fetch the job for a fresh one."
+              },
+              "audio_url_expires_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2026-10-09T08:30:00.000Z"
+              },
+              "duration_sec": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "format": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "mp3"
+              }
+            },
+            "required": [
+              "audio_url",
+              "audio_url_expires_at",
+              "duration_sec",
+              "format"
+            ]
+          },
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "status",
+          "mode",
+          "prompt",
+          "duration_sec",
+          "license",
+          "instrumental",
+          "metadata",
+          "credits_charged",
+          "model",
+          "output",
+          "error",
+          "created_at",
+          "started_at",
+          "completed_at"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invalid_request_error",
+                  "authentication_error",
+                  "permission_error",
+                  "not_found_error",
+                  "idempotency_error",
+                  "billing_error",
+                  "rate_limit_error",
+                  "api_error"
+                ]
+              },
+              "code": {
+                "type": "string",
+                "example": "parallel_limit_reached"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string",
+                "example": "req_01J9ZK3XQ2V8M6N4P0R7T5W1Y3"
+              }
+            },
+            "required": [
+              "type",
+              "code",
+              "message",
+              "request_id"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "GenerationList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Generation"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass as starting_after to get the next page"
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "usage"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-10"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "monthly_credits": {
+                "type": "integer"
+              },
+              "parallel_limit": {
+                "type": "integer"
+              },
+              "requests_per_hour": {
+                "type": "integer"
+              },
+              "requests_per_day": {
+                "type": "integer"
+              },
+              "licenses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "royalty_free",
+                    "sync",
+                    "full_ownership"
+                  ]
+                }
+              },
+              "overage_allowed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "monthly_credits",
+              "parallel_limit",
+              "requests_per_hour",
+              "requests_per_day",
+              "licenses",
+              "overage_allowed"
+            ]
+          },
+          "credits": {
+            "type": "object",
+            "properties": {
+              "allowance": {
+                "type": "integer"
+              },
+              "used": {
+                "type": "integer"
+              },
+              "remaining": {
+                "type": "integer"
+              },
+              "overage": {
+                "type": "integer",
+                "description": "Credits beyond the allowance, billed separately (Growth)"
+              }
+            },
+            "required": [
+              "allowance",
+              "used",
+              "remaining",
+              "overage"
+            ]
+          },
+          "parallel": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "live_in_progress": {
+                "type": "integer"
+              },
+              "test_in_progress": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "limit",
+              "live_in_progress",
+              "test_in_progress"
+            ]
+          },
+          "by_key": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "api_key_id": {
+                  "type": "string"
+                },
+                "prefix": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "credits": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "api_key_id",
+                "prefix",
+                "name",
+                "credits"
+              ]
+            }
+          },
+          "by_day": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string"
+                },
+                "credits": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "day",
+                "credits"
+              ]
+            }
+          }
+        },
+        "required": [
+          "object",
+          "period",
+          "period_start",
+          "period_end",
+          "plan",
+          "credits",
+          "parallel",
+          "by_key",
+          "by_day"
+        ]
+      },
+      "WebhookEndpointCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "we_01J9ZK3XQ2V8M6N4P0R7T5W1Y3"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook_endpoint"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "generation.succeeded",
+                "generation.failed",
+                "generation.canceled"
+              ]
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "whsec_8f3k2a9q...",
+            "description": "Signing secret. Returned once, on creation; null on idempotent replays."
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "url",
+          "description",
+          "events",
+          "created_at",
+          "secret"
+        ]
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "we_01J9ZK3XQ2V8M6N4P0R7T5W1Y3"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook_endpoint"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "generation.succeeded",
+                "generation.failed",
+                "generation.canceled"
+              ]
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T08:30:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "url",
+          "description",
+          "events",
+          "created_at"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/generations": {
+      "post": {
+        "summary": "Start a generation",
+        "description": "Validates license, parallel slots and credits, reserves the credits and queues the job atomically. Cost: credits per license (royalty_free 1, sync 6, full_ownership 14) × each started 60 s of requested duration.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h."
+            },
+            "required": false,
+            "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h.",
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1500
+                  },
+                  "duration_sec": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 240,
+                    "default": 30
+                  },
+                  "license": {
+                    "type": "string",
+                    "enum": [
+                      "royalty_free",
+                      "sync",
+                      "full_ownership"
+                    ],
+                    "default": "royalty_free"
+                  },
+                  "instrumental": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "default": {}
+                  }
+                },
+                "required": [
+                  "prompt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job accepted (status queued)",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Limit of the window closest to exhaustion"
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Unix time the window resets"
+              },
+              "X-RateLimit-Window": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "hour",
+                    "day"
+                  ]
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Generation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "insufficient_credits: allowance exhausted and the plan has no overage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "idempotency_key_reused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List generations (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed",
+                "canceled"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "next_cursor from the previous page"
+            },
+            "required": false,
+            "description": "next_cursor from the previous page",
+            "name": "starting_after",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of generations",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Limit of the window closest to exhaustion"
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Unix time the window resets"
+              },
+              "X-RateLimit-Window": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "hour",
+                    "day"
+                  ]
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generations/{id}": {
+      "get": {
+        "summary": "Get a generation",
+        "description": "When succeeded, output.audio_url is a freshly signed URL. Prefer webhooks to polling; if you poll, every 5 s or slower (polls count toward your rate limit).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The generation",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Limit of the window closest to exhaustion"
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Unix time the window resets"
+              },
+              "X-RateLimit-Window": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "hour",
+                    "day"
+                  ]
+                }
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Generation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also returned for other accounts' jobs)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/generations/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a queued or running generation",
+        "description": "Queued: canceled with a full refund. Running: canceled, not refunded (the model was already invoked). Already canceled: returned as-is.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h."
+            },
+            "required": false,
+            "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h.",
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The canceled generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Generation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "generation_not_cancelable: already succeeded or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "summary": "Usage and remaining allowance for the current period",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage for the current UTC calendar month",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook_endpoints": {
+      "post": {
+        "summary": "Register a webhook endpoint",
+        "description": "URLs must resolve only to public addresses (no private, loopback, link-local or metadata IPs); re-checked on every delivery. Max 10 endpoints.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h."
+            },
+            "required": false,
+            "description": "Retries with the same key and body return the original response (Idempotent-Replayed: true) and never create or bill twice. Same key + different body = 422. Keys are kept for 24h.",
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created; includes the signing secret once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookEndpointCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "too_many_endpoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_webhook_url",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List webhook endpoints",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Endpoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "enum": [
+                        "list"
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WebhookEndpoint"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook_endpoints/{id}": {
+      "delete": {
+        "summary": "Delete a webhook endpoint",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/WebhookEndpoint"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "deleted"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (invalid_parameter, invalid_json, invalid_idempotency_key)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked or expired API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope, or not allowed on your plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "hourly_rate_limit_exceeded, daily_rate_limit_exceeded or parallel_limit_reached. See Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "generation.succeeded | generation.failed | generation.canceled": {
+      "post": {
+        "summary": "Event delivered to your endpoint",
+        "description": "Header Soundverse-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, `${t}.${raw body}`)>. Verify over the raw body, reject if |now - t| > 300 s, dedupe on event id. Respond 2xx within 10 s; otherwise we retry with backoff for ~24 h.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged"
+          }
+        }
+      }
+    }
+  }
+}
