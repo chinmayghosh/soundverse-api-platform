@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "demo": "docker compose up --build",
-    "test:docker": "docker compose --profile test run --rm --build test"
+    "test:docker": "docker compose --profile test run --rm --build test",
+    "plan:set": "tsx scripts/set-plan.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",

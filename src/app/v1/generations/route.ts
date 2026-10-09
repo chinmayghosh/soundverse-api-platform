@@ -1,7 +1,22 @@
 import { z } from "zod";
-import { apiRoute, parseOrThrow } from "@/server/http/api";
+import { apiRoute, parseOrThrow, readRawJson } from "@/server/http/api";
+import { withIdempotency } from "@/server/http/idempotency";
+import { CreateGenerationInput, createGeneration } from "@/server/generations/create";
 import { GENERATION_STATUSES, listGenerations } from "@/server/generations/queries";
 import { serializeGeneration } from "@/server/generations/serialize";
+
+export const POST = apiRoute("generations:write", async (ctx) => {
+  const raw = await readRawJson(ctx.req);
+  const input = parseOrThrow(CreateGenerationInput, raw);
+  return withIdempotency(ctx, raw, async (tx) => {
+    const gen = await createGeneration(tx, ctx.key, input);
+    return {
+      status: 202,
+      body: await serializeGeneration(gen),
+      headers: { Location: `/v1/generations/${gen.id}` },
+    };
+  });
+});
 
 const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),

@@ -96,3 +96,50 @@ export async function call(
   const text = await res.text();
   return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null, text };
 }
+
+// Simulate credits already spent this period: a finished live job + its debit.
+export async function spendCredits(accountId: string, apiKeyId: string, credits: number) {
+  const { recordDebit } = await import("@/server/billing/ledger");
+  const { periodOf } = await import("@/server/billing/pricing");
+  await db().transaction(async (tx) => {
+    const [gen] = await tx
+      .insert(generations)
+      .values({
+        id: newId("gen"),
+        accountId,
+        apiKeyId,
+        mode: "live",
+        status: "succeeded",
+        prompt: "earlier usage",
+        durationSec: 60,
+        license: "royalty_free",
+        instrumental: true,
+        creditsCharged: credits,
+        provider: "mock",
+        model: "mock-music-1",
+      })
+      .returning();
+    await recordDebit(tx, {
+      accountId,
+      generationId: gen.id,
+      apiKeyId,
+      period: periodOf(new Date()),
+      allowance: credits,
+      overage: 0,
+    });
+  });
+}
+
+export const genBody = (over: Record<string, unknown> = {}) => ({
+  prompt: "uplifting acoustic pop for a travel vlog, warm guitars",
+  duration_sec: 30,
+  license: "royalty_free",
+  instrumental: true,
+  ...over,
+});
+
+export function countBy<T>(items: T[], f: (t: T) => string | number) {
+  const out: Record<string, number> = {};
+  for (const i of items) out[f(i)] = (out[f(i)] ?? 0) + 1;
+  return out;
+}
