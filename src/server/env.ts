@@ -35,6 +35,12 @@ const EnvSchema = z.object({
 
   KEY_ROTATION_GRACE_SEC: z.coerce.number().int().nonnegative().default(86400),
   ALLOW_HTTP_WEBHOOKS: z.stringbool().default(false),
+  // Comma-separated exact hostnames exempt from the private-address check.
+  // Local development only (e.g. "localhost,host.docker.internal").
+  WEBHOOK_ALLOW_PRIVATE_HOSTS: z
+    .string()
+    .default("")
+    .transform((s) => s.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean)),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

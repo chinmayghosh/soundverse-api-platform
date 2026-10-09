@@ -1,4 +1,5 @@
 import { sleep } from "../providers/mock";
+import { defaultDeliveryDeps, deliverDue } from "../webhooks/deliveries";
 import { claimNext, housekeeping, processJob, reapExpiredLeases, type WorkerDeps } from "./worker";
 
 // Long-running loop for the worker process. Up to `concurrency` jobs at once;
@@ -19,6 +20,22 @@ export class Runner {
     this.timers.push(setInterval(() => void reapExpiredLeases().then(log("reaper")).catch(warn), 10_000));
     this.timers.push(setInterval(() => void housekeeping().catch(warn), 10 * 60_000));
     void this.loop();
+    void this.deliveryLoop();
+  }
+
+  // Webhook deliveries: a separate loop so slow customer endpoints never
+  // delay generation jobs.
+  private async deliveryLoop() {
+    const deps = defaultDeliveryDeps();
+    while (this.running) {
+      try {
+        const n = await deliverDue(deps);
+        if (n === 0) await sleep(1000);
+      } catch (e) {
+        warn(e);
+        await sleep(2000);
+      }
+    }
   }
 
   private async loop() {

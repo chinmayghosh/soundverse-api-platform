@@ -67,7 +67,7 @@ export async function withIdempotency(
     const result = await work(tx);
     await tx
       .update(idempotencyKeys)
-      .set({ responseStatus: result.status, responseBody: result.body })
+      .set({ responseStatus: result.status, responseBody: result.replayBody ?? result.body })
       .where(and(eq(idempotencyKeys.accountId, accountId), eq(idempotencyKeys.key, key)));
     return result;
   });

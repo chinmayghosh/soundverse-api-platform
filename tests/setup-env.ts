@@ -14,9 +14,13 @@ const defaults: Record<string, string> = {
   LIVE_PROVIDER: "mock",
   MOCK_LATENCY_MS: "50",
   MOCK_FAILURE_RATE: "0",
+  // http allowed so SSRF tests exercise the address check itself.
+  ALLOW_HTTP_WEBHOOKS: "true",
 };
 
 for (const [k, v] of Object.entries(defaults)) process.env[k] ??= v;
 // Never let a developer's real provider key leak into a test run.
 process.env.LIVE_PROVIDER = "mock";
 delete process.env.FAL_KEY;
+// No private-host exemptions in tests; tests that need one pass it explicitly.
+process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS = "";

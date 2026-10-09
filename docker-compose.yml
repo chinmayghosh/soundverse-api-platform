@@ -25,6 +25,9 @@ x-app-env: &app-env
   MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-3000}
   MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0}
   ALLOW_HTTP_WEBHOOKS: ${ALLOW_HTTP_WEBHOOKS:-true}
+  # Dev only: lets the demo deliver to a receiver running on your machine.
+  # The private-address SSRF check still applies to every other host.
+  WEBHOOK_ALLOW_PRIVATE_HOSTS: ${WEBHOOK_ALLOW_PRIVATE_HOSTS:-host.docker.internal}
 
 services:
   postgres:
@@ -67,6 +70,7 @@ services:
     build: .
     command: npm start
     environment: *app-env
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["3000:3000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -75,6 +79,8 @@ services:
     build: .
     command: npm run worker
     environment: *app-env
+    # host.docker.internal on Linux too (built in on Docker Desktop).
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -89,6 +95,7 @@ services:
       S3_PUBLIC_ENDPOINT: http://storage:9000
       LIVE_PROVIDER: mock
       FAL_KEY: ""
+      WEBHOOK_ALLOW_PRIVATE_HOSTS: ""
     depends_on:
       postgres: { condition: service_healthy }
       storage: { condition: service_started }

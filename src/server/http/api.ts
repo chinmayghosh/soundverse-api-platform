@@ -15,6 +15,9 @@ export interface ApiResult {
   status: number;
   body: unknown;
   headers?: Record<string, string>;
+  // What an idempotent replay returns, if it must differ from `body`
+  // (e.g. to avoid storing a one-time secret).
+  replayBody?: unknown;
 }
 
 type Handler<P> = (ctx: ApiContext, params: P) => Promise<ApiResult>;
