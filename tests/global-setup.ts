@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { closeDb, db } from "@/server/db/client";
 import { seedPlans } from "@/server/db/seed";
+import { ensureBucket } from "@/server/storage/s3";
 
 // Fresh schema for every run. DROP SCHEMA (not TRUNCATE) because the ledger
 // trigger deliberately blocks TRUNCATE.
@@ -15,5 +16,6 @@ export async function setup() {
   await db().execute(sql`CREATE SCHEMA public`);
   await migrate(db(), { migrationsFolder: "./drizzle" });
   await seedPlans();
+  await ensureBucket();
   await closeDb();
 }

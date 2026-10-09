@@ -2,11 +2,13 @@ import "dotenv/config";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { closeDb, db } from "./client";
 import { seedPlans } from "./seed";
+import { ensureBucket } from "../storage/s3";
 
 async function main() {
   await migrate(db(), { migrationsFolder: "./drizzle" });
   await seedPlans();
-  console.log("migrations applied, plans seeded");
+  await ensureBucket();
+  console.log("migrations applied, plans seeded, bucket ready");
 }
 
 main()

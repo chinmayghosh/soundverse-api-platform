@@ -1,4 +1,4 @@
-// Defaults so `npm test` works on the host against `docker compose up postgres minio`.
+// Defaults so `npm test` works on the host against `docker compose up -d postgres storage`.
 // Anything already set (e.g. by the compose `test` service) wins.
 const defaults: Record<string, string> = {
   NODE_ENV: "test",
@@ -8,8 +8,8 @@ const defaults: Record<string, string> = {
   BETTER_AUTH_SECRET: "test-better-auth-secret-0123456789abcdef",
   S3_ENDPOINT: "http://localhost:9000",
   S3_PUBLIC_ENDPOINT: "http://localhost:9000",
-  S3_ACCESS_KEY: "minioadmin",
-  S3_SECRET_KEY: "minioadmin",
+  S3_ACCESS_KEY: "s3admin",
+  S3_SECRET_KEY: "s3admin-secret",
   S3_BUCKET: "soundverse-audio",
   LIVE_PROVIDER: "mock",
   MOCK_LATENCY_MS: "50",

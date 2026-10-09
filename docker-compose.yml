@@ -1,6 +1,6 @@
 # One command: `docker compose up --build`
-#   app     http://localhost:3000   (dashboard + /v1 API)
-#   minio   http://localhost:9001   (console, minioadmin/minioadmin)
+#   app      http://localhost:3000   (dashboard + /v1 API)
+#   storage  http://localhost:9001   (RustFS console, s3admin / s3admin-secret)
 # Tests:  `docker compose --profile test run --rm --build test`
 #
 # The values below are LOCAL DEV DEFAULTS so the stack runs with zero setup.
@@ -14,10 +14,10 @@ x-app-env: &app-env
   API_KEY_PEPPER: dev-only-pepper-change-me-0123456789abcdef
   WEBHOOK_SECRET_ENC_KEY: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
   BETTER_AUTH_SECRET: dev-only-better-auth-secret-0123456789abcdef
-  S3_ENDPOINT: http://minio:9000
+  S3_ENDPOINT: http://storage:9000
   S3_PUBLIC_ENDPOINT: http://localhost:9000
-  S3_ACCESS_KEY: minioadmin
-  S3_SECRET_KEY: minioadmin
+  S3_ACCESS_KEY: s3admin
+  S3_SECRET_KEY: s3admin-secret
   S3_BUCKET: soundverse-audio
   LIVE_PROVIDER: ${LIVE_PROVIDER:-mock}
   FAL_KEY: ${FAL_KEY:-}
@@ -43,27 +43,17 @@ services:
       timeout: 3s
       retries: 30
 
-  minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    command: server /data --console-address ":9001"
+  # S3-compatible object store. RustFS (Apache-2.0) instead of MinIO, whose
+  # Docker images are no longer published. Same S3 API; the bucket is created
+  # by the migrate step through the S3 SDK, so any S3 provider works.
+  storage:
+    image: rustfs/rustfs:1.0.1
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: s3admin
+      RUSTFS_SECRET_KEY: s3admin-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports: ["9000:9000", "9001:9001"]
-    volumes: [miniodata:/data]
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 2s
-      timeout: 3s
-      retries: 30
-
-  minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
-    depends_on:
-      minio: { condition: service_healthy }
-    entrypoint: >
-      sh -c "mc alias set local http://minio:9000 minioadmin minioadmin &&
-             mc mb -p local/soundverse-audio && mc anonymous set none local/soundverse-audio"
+    volumes: [s3data:/data]
 
   migrate:
     build: .
@@ -71,6 +61,7 @@ services:
     environment: *app-env
     depends_on:
       postgres: { condition: service_healthy }
+      storage: { condition: service_started }
 
   app:
     build: .
@@ -79,7 +70,6 @@ services:
     ports: ["3000:3000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
-      minio-init: { condition: service_completed_successfully }
 
   worker:
     build: .
@@ -87,7 +77,6 @@ services:
     environment: *app-env
     depends_on:
       migrate: { condition: service_completed_successfully }
-      minio-init: { condition: service_completed_successfully }
 
   test:
     profiles: [test]
@@ -97,13 +86,13 @@ services:
       <<: *app-env
       NODE_ENV: test
       DATABASE_URL: postgres://soundverse:soundverse@postgres:5432/soundverse_test
-      S3_PUBLIC_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://storage:9000
       LIVE_PROVIDER: mock
       FAL_KEY: ""
     depends_on:
       postgres: { condition: service_healthy }
-      minio-init: { condition: service_completed_successfully }
+      storage: { condition: service_started }
 
 volumes:
   pgdata:
-  miniodata:
+  s3data:
