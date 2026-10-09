@@ -12,7 +12,8 @@ import { modelFor } from "../providers/registry";
 export const MAX_DURATION_SEC = 240;
 
 export const CreateGenerationInput = z.object({
-  prompt: z.string().trim().min(1).max(2000),
+  // Leaves room for the duration hint within the model's 2,000-char prompt limit.
+  prompt: z.string().trim().min(1).max(1500),
   duration_sec: z.number().int().min(5).max(MAX_DURATION_SEC).default(30),
   // Defaults to the cheapest license, which grants the fewest rights.
   license: z.enum(LICENSES).default("royalty_free"),
@@ -56,6 +57,14 @@ export async function createGeneration(tx: Tx, key: AuthedKey, input: CreateGene
   if (key.mode === "live" && !plan.liveKeysAllowed) {
     throw Errors.forbidden("live_keys_not_in_plan", `The ${plan.name} plan only allows test keys.`);
   }
+  // ...and can the model that will run this job back that license?
+  const model = modelFor(key.mode);
+  if (!model.licenses.includes(input.license)) {
+    throw Errors.forbidden(
+      "license_not_supported_by_model",
+      `The current model (${model.provider}/${model.model}) can't be sold with the "${input.license}" license under its provider's terms. Available: ${model.licenses.join(", ")}.`,
+    );
+  }
 
   // 2. Parallel slots. Queued and running jobs both hold a slot. Counted per
   //    mode so CI traffic on test keys can't block production generations.
@@ -98,7 +107,6 @@ export async function createGeneration(tx: Tx, key: AuthedKey, input: CreateGene
   }
 
   // 4. Write the job (which is also the queue entry) and the debit together.
-  const { provider, model } = modelFor(key.mode);
   const [gen] = await tx
     .insert(generations)
     .values({
@@ -112,8 +120,8 @@ export async function createGeneration(tx: Tx, key: AuthedKey, input: CreateGene
       instrumental: input.instrumental,
       metadata: input.metadata,
       creditsCharged: key.mode === "live" ? cost : 0,
-      provider,
-      model,
+      provider: model.provider,
+      model: model.model,
     })
     .returning();
 

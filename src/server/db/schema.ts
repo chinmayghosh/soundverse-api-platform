@@ -346,3 +346,12 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_account_created_idx").on(t.accountId, t.createdAt)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Spend guard for paid providers: calls made, capped by env.          */
+/* ------------------------------------------------------------------ */
+
+export const providerUsage = pgTable("provider_usage", {
+  provider: text("provider").primaryKey(),
+  calls: integer("calls").notNull().default(0),
+});
