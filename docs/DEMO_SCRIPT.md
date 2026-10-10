@@ -76,7 +76,7 @@ Follow the README architecture table:
 
 ## 8:30 – 9:45 · Top three known problems (camera)
 
-1. The real-model path is tested against a fake fal API. *(Say whether you ran a real paid generation.)* MiniMax ignores duration, so a 30 s request billed as 30 s can come back as a 2-minute song. The fix is a model with duration control, or trimming before storage.
+1. MiniMax ignores duration: in a real run, 30 s was requested and billed, and 89 s came back. The fix is a model with duration control, or trimming before storage.
 2. One account's creates are serialized by its row lock, which caps per-account throughput. Fine at these plans, but not at 1,000 creates per second.
 3. Webhooks are at-least-once and unordered, and fixed-window rate limits allow 2× bursts at the hour boundary.
 

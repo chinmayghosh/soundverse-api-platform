@@ -59,7 +59,7 @@ describe("FalProvider (MiniMax Music v2.6 via fal queue API)", () => {
     expect(out).toMatchObject({ format: "mp3", contentType: "audio/mpeg", durationSec: 30 });
     expect(submitted).toEqual(["fal-req-1"]);
     expect(calls[0]).toMatchObject({ method: "POST", url: `https://queue.fal.run/${FAL_MODEL_ID}`, auth: "Key k" });
-    expect(calls[0].body).toMatchObject({ is_instrumental: true, audio_setting: { format: "mp3" } });
+    expect(calls[0].body).toMatchObject({ is_instrumental: true, audio_setting: { format: "mp3", sample_rate: 44100, bitrate: 256000 } });
     expect((calls[0].body as { prompt: string }).prompt).toContain("about 30 seconds");
     expect(calls.filter((c) => c.url.endsWith("/status"))).toHaveLength(3);
     expect(calls[1].url).toBe("https://queue.fal.run/fal-ai/minimax-music/requests/fal-req-1/status");
@@ -77,7 +77,9 @@ describe("FalProvider (MiniMax Music v2.6 via fal queue API)", () => {
 
   it("maps a 4xx refusal to a non-retryable rejection, 5xx to a retryable error", async () => {
     const refused = new FalProvider({ apiKey: "k", fetch: fakeFal({ submit: 422 }).fetchImpl });
-    await expect(refused.generate(req())).rejects.toMatchObject({ code: "provider_rejected", retryable: false });
+    const err = await refused.generate(req()).catch((e) => e);
+    expect(err).toMatchObject({ code: "provider_rejected", retryable: false });
+    expect(err.message).not.toContain("content policy violation"); // provider detail stays in our logs
     const down = new FalProvider({ apiKey: "k", fetch: fakeFal({ submit: 503 }).fetchImpl });
     await expect(down.generate(req())).rejects.toMatchObject({ code: "provider_error", retryable: true });
   });

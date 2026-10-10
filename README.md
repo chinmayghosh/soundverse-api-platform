@@ -88,8 +88,8 @@ The full reasoning behind these choices is in **[DECISIONS.md](DECISIONS.md)**. 
 
 | Item | What's missing |
 |---|---|
-| **Live model (fal.ai MiniMax Music v2.6)** | The adapter is built and tested against a fake of fal's queue API: submit, resume after a crash, refusals, and the spend cap. **A real paid generation has not been run yet** (needs `FAL_KEY`). |
-| Duration on the live model | MiniMax v2.6 has no duration parameter. We send the target length as a prompt hint and bill the *requested* duration, so actual length can differ from what was billed. Returned `output.duration_sec` for MP3 is estimated from file size at the requested bitrate. |
+| **Live model (fal.ai MiniMax Music v2.6)** | Verified with real paid generations: a 2.9 MB MP3 in about 90 s, 1 credit charged in the ledger. The first real call caught a bug the fake API couldn't: fal's docs show `sample_rate` as a string, but the API requires a number. Crash-resume, refusals and the spend cap are tested against a fake fal queue only, to avoid spend. |
+| Duration on the live model | MiniMax v2.6 has no duration parameter. We send the target length as a prompt hint and bill the *requested* duration. **Measured: 30 s requested, 89 s delivered.** Returned `output.duration_sec` for MP3 is estimated from file size at the requested bitrate. |
 | Rate limits | Fixed UTC windows, so up to 2× the hourly limit can pass around an hour boundary. Polls count toward the limit by design (see DECISIONS). |
 | Dashboard | Functional, not polished. No password reset or account settings. |
 
@@ -102,7 +102,7 @@ The full reasoning behind these choices is in **[DECISIONS.md](DECISIONS.md)**. 
 
 ## Top 3 known problems
 
-1. **The real-model path hasn't been exercised with a paid call yet**, and MiniMax decides the song length itself. A customer who asks for 30 s and is billed for 30 s may get a 2-minute track. The fix needs either a model with a duration control or server-side trimming (ffmpeg) before storage.
+1. **MiniMax decides the song length itself.** In a real run, 30 s was requested and billed, and 89 s was delivered. Customers get more than they pay for, and can't get a short clip. The fix needs either a model with a duration control or server-side trimming (ffmpeg) before storage.
 2. **Every create for one account runs through a single row lock**, so one account's create throughput is bounded by transaction latency (a few ms, about hundreds per second). That's fine at these plan sizes, but a very large customer would need sharded counters or a reservation table.
 3. **Webhook delivery is at-least-once and unordered.** Receivers must dedupe on `event.id`, as documented. A `succeeded` event for a job could arrive after a later job's event. There's no manual "resend" button yet.
 

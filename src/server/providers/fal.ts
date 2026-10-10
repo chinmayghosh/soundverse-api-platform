@@ -81,7 +81,8 @@ export class FalProvider implements MusicProvider {
       lyrics: "",
       // With vocals and no lyrics given, let the model write them from the prompt.
       lyrics_optimizer: !req.instrumental,
-      audio_setting: { format: "mp3", sample_rate: "44100", bitrate: String(MP3_BITRATE) },
+      // Numbers, not strings: the live API rejects "44100" (its docs show strings).
+      audio_setting: { format: "mp3", sample_rate: 44100, bitrate: MP3_BITRATE },
     };
   }
 
@@ -102,7 +103,9 @@ export class FalProvider implements MusicProvider {
     // 4xx other than rate limiting = the request itself was refused (bad
     // input, content policy): retrying won't help. 429/5xx might.
     if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 408) {
-      throw new ProviderError("provider_rejected", `Music model refused the request (HTTP ${res.status}): ${detail}`, false);
+      // Provider internals stay in our logs; customers get a clean message.
+      console.error(`fal refused request: HTTP ${res.status} ${detail}`);
+      throw new ProviderError("provider_rejected", "The music model refused this request (e.g. content policy or unsupported input).", false);
     }
     throw new ProviderError("provider_error", `Music model error (HTTP ${res.status}).`);
   }
