@@ -16,6 +16,7 @@
 | **Forged or replayed webhooks** | HMAC-SHA256 over `timestamp.body` with a per-endpoint secret (AES-256-GCM at rest, shown once). Receivers reject timestamps more than 300 s off and dedupe on the event id. | Scenario 10, signature tests |
 | **Rights changed by a silent model switch** | The model is fixed on the job at creation; the worker never substitutes. Each model declares the licenses it can back. | Scenario 7, license-by-model test |
 | **Stale worker overwriting results** | Lease plus fencing token (`attempts`) on every worker write; a cancel is a row-locked state transition. | Zombie-worker and cancel-race tests |
+| **Account enumeration and takeover through sign-up** | Signing up with an email that already has an account returns the same response as a real sign-up, so the form can't reveal who has an account. Nothing is created, no email is sent, and the existing password and account are untouched. Email matching ignores letter case. | Duplicate sign-up test |
 | **Invite hijack** | Invites are accepted only by a *verified* email, on first dashboard load, never in the pre-verification sign-up hook. | Team test |
 | **Dashboard CSRF** | Mutations are Next.js server actions (POST-only, Origin checked); Better Auth checks trusted origins. | n/a |
 | **Runaway model spend** | `LIVE_PROVIDER_MAX_CALLS` hard cap; tests and test keys can't reach the paid model (tests force the mock and delete `FAL_KEY`). | Spend-cap concurrency test |

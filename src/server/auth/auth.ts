@@ -26,7 +26,7 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      minPasswordLength: 10,
+      minPasswordLength: 8,
     },
     emailVerification: {
       sendOnSignUp: true,

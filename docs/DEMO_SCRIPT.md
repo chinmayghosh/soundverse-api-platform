@@ -72,7 +72,7 @@ Follow the README architecture table:
 4. `billing/ledger.ts` and the append-only trigger migration. Refunds are new rows.
 5. `jobs/worker.ts`: SKIP LOCKED claim, lease plus heartbeat, `attempts` as the fencing token, reaper.
 6. `providers/registry.ts`: the model is fixed at creation; licenses per model; why full_ownership isn't sold on MiniMax.
-7. `tests/scenarios/`: one file per acceptance scenario. Run `npm run test:docker` (125 passing).
+7. `tests/scenarios/`: one file per acceptance scenario. Run `npm run test:docker` (127 passing).
 
 ## 8:30 – 9:45 · Top three known problems (camera)
 

@@ -49,6 +49,36 @@ describe("dashboard accounts (Better Auth)", () => {
   });
 });
 
+describe("sign-up with an email that already has an account", () => {
+  it("looks successful (no account enumeration) but creates nothing and can't take over the account", async () => {
+    const email = `taken${Date.now()}@example.com`;
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    expect((await post("/sign-up/email", { name: "Owner", email, password: "owner-pass-1" })).status).toBe(200);
+    const url = log.mock.calls.map((c) => String(c[0])).find((l) => l.includes(`[email] verify ${email}`))!.match(/https?:\/\/\S+/)![0];
+    await auth().GET(new Request(url));
+    log.mockClear();
+
+    // Second sign-up, same email (different case), different password.
+    const again = await post("/sign-up/email", { name: "Impostor", email: email.toUpperCase(), password: "impostor-pass-2" });
+    expect(again.status).toBe(200); // same response as a real sign-up
+    expect(log.mock.calls.some((c) => String(c[0]).includes("[email] verify"))).toBe(false);
+    log.mockRestore();
+
+    const users = await db().select().from(authUsers).where(eq(authUsers.email, email));
+    expect(users).toHaveLength(1);
+    expect(users[0].name).toBe("Owner");
+    expect((await post("/sign-in/email", { email, password: "impostor-pass-2" })).status).toBe(401);
+    expect((await post("/sign-in/email", { email, password: "owner-pass-1" })).status).toBe(200);
+  });
+
+  it("requires passwords of at least 8 characters", async () => {
+    const short = await post("/sign-up/email", { name: "X", email: `short${Date.now()}@example.com`, password: "seven77" });
+    expect(short.status).toBe(400);
+    const ok = await post("/sign-up/email", { name: "X", email: `eight${Date.now()}@example.com`, password: "eight888" });
+    expect(ok.status).toBe(200);
+  });
+});
+
 describe("API keys", () => {
   it("rejects malformed, unknown and missing keys with the standard error shape", async () => {
     const acct = await createTestAccount();

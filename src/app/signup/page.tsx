@@ -28,10 +28,19 @@ export default function SignupPage() {
 
   if (sentTo) {
     return (
-      <AuthCard title="Verify your email">
+      <AuthCard title="Check your email">
+        {/* Same message whether or not the email is already registered, so the
+            sign-up form can't be used to find out who has an account. */}
         <p className="text-sm">
-          We sent a verification link to <b>{sentTo}</b>. In this local build the link is printed
-          to the server log (look for <code>[email] verify</code>).
+          If <b>{sentTo}</b> is new to Soundverse, we&apos;ve sent it a verification link. In this
+          local build the link is printed to the server log (look for <code>[email] verify</code>).
+        </p>
+        <p className="mt-3 text-sm">
+          Already have an account with this email?{" "}
+          <Link className="underline" href="/login">
+            Log in instead
+          </Link>
+          .
         </p>
       </AuthCard>
     );
@@ -42,7 +51,7 @@ export default function SignupPage() {
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Name" name="name" required />
         <Field label="Email" name="email" type="email" required />
-        <Field label="Password (10+ characters)" name="password" type="password" minLength={10} required />
+        <Field label="Password (8+ characters)" name="password" type="password" minLength={8} required />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <SubmitButton pending={pending}>Sign up</SubmitButton>
       </form>

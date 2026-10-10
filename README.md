@@ -8,7 +8,7 @@ A self-serve developer API for AI music generation. A developer signs up, verifi
 
 ```bash
 docker compose up --build                            # app :3000, worker, Postgres, S3 (RustFS :9000/:9001)
-docker compose --profile test run --rm --build test  # the full test suite (125 tests) against fresh Postgres + S3
+docker compose --profile test run --rm --build test  # the full test suite (127 tests) against fresh Postgres + S3
 ```
 
 No `.env` is needed for the above. Compose carries local-only defaults. To use the real model, put `LIVE_PROVIDER=fal` and `FAL_KEY=…` in `.env` (see [.env.example](.env.example)).
@@ -78,7 +78,7 @@ The full reasoning behind these choices is in **[DECISIONS.md](DECISIONS.md)**. 
 | Idempotency | `Idempotency-Key` on all POSTs. A concurrent retry waits for the first request and replays its response. A different body gets 422. |
 | Webhooks | Endpoints API. Signed `generation.succeeded`, `generation.failed` and `generation.canceled` events. 13 attempts over about 24 h. Replay protection. SSRF protection. |
 | Docs | OpenAPI 3.1 generated from the validation schemas, with a test that real responses match it. Quickstart doc and script. |
-| Tests | 125 tests, including every acceptance scenario (`tests/scenarios/01…14`). Two mutation checks confirm the concurrency and SSRF tests fail when their guard is removed. |
+| Tests | 127 tests, including every acceptance scenario (`tests/scenarios/01…14`). Two mutation checks confirm the concurrency and SSRF tests fail when their guard is removed. |
 | Usage view (Should) | Credits used, remaining and overage; per key; per day; latest ledger rows |
 | Audit log (Should) | Key create, rotate and revoke; plan changes; webhooks; team changes. Records actor, IP and time. |
 | Team members (Should) | Owner and developer roles. Invites are accepted on verified sign-up. Developers manage test keys only. |
